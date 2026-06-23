@@ -75,7 +75,7 @@ public sealed class TuiApp
                 var line = await _reader.ReadLineAsync();
                 if (line is null)
                 {
-                    SetResult("Disconnected.");
+                    SetStatus("Disconnected.");
                     _running = false;
                     return;
                 }
@@ -86,14 +86,21 @@ public sealed class TuiApp
 
                 lock (_lock)
                 {
-                    if (message is StateMessage state)
+                    switch (message)
                     {
-                        _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
-                        _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
-                    }
-                    else if (message is ResultMessage result)
-                    {
-                        _model.LastResult = result.Text;
+                        case StateMessage state:
+                            _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
+                            _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
+                            break;
+                        case ResultMessage result:
+                            _model.StatusText = $"{result.Kind}: {result.Description}";
+                            break;
+                        case BadMessage bad:
+                            _model.StatusText = $"bad message: \"{bad.RawLine}\"";
+                            break;
+                        case UnknownMessage unknown:
+                            _model.StatusText = $"unknown message: \"{unknown.RawLine}\"";
+                            break;
                     }
                 }
 
@@ -102,15 +109,15 @@ public sealed class TuiApp
         }
         catch (Exception ex)
         {
-            SetResult($"Receive error: {ex.Message}");
+            SetStatus($"Receive error: {ex.Message}");
             _running = false;
         }
     }
 
-    private void SetResult(string text)
+    private void SetStatus(string text)
     {
         lock (_lock)
-            _model.LastResult = text;
+            _model.StatusText = text;
         RenderLocked();
     }
 
@@ -122,7 +129,7 @@ public sealed class TuiApp
         }
         catch (Exception ex)
         {
-            SetResult($"Send error: {ex.Message}");
+            SetStatus($"Send error: {ex.Message}");
         }
     }
 

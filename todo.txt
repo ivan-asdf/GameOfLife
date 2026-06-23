@@ -23,15 +23,7 @@ You are expected to use AI agents for the task. Be prepared to discuss your appr
 
 
 
-tcp komunicaciya
-servera broadcastva state sled kato trugne
 wrapvane kato stigne 2^64 nqkoq kletka
-
-Console UI
-Draw
-    problem da pokazva li i spisuk na kletki(drawvat se samo 100x100 toest tezi izvun initial square)
-+ input za realtime commandi
-    problema s kak se pokazva tekushtiq input i response ot servera dokuta refreshva drawa!
 
 save/load
     dali samo purvonachalen state ili moje da save i running?
@@ -39,9 +31,5 @@ save/load
 
 
 Refactor TUI:
-    checkout protokol
-        mainly the GEN
-        have good success messages from server
     move lock inside model
     see if we really need TuiScreen?!?
-    Renames?!

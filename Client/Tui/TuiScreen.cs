@@ -15,8 +15,8 @@ public static class TuiScreen
             Console.WriteLine(line);
 
         Console.WriteLine();
-        Console.WriteLine("=== Last command ===");
-        Console.WriteLine(model.LastResult);
+        Console.WriteLine("=== Status ===");
+        Console.WriteLine(model.StatusText);
 
         Console.WriteLine();
         Console.WriteLine("=== Input ===");

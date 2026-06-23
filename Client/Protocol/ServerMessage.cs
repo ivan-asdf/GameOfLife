@@ -7,24 +7,30 @@ public abstract record ServerMessage
         if (string.IsNullOrWhiteSpace(line))
             return null;
 
-        var parts = line.Split('|');
+        string[] parts = line.Split('|', StringSplitOptions.TrimEntries);
 
         return parts[0].ToUpperInvariant() switch
         {
-            "STATE" => ParseState(parts),
-            "RESULT" => ParseResult(parts),
-            _ => null
+            "STATE" => ParseState(parts, line),
+            "RESULT" => ParseResult(parts, line),
+            _ => new UnknownMessage(line)
         };
     }
 
-    private static StateMessage ParseState(string[] parts)
+    private static ServerMessage ParseState(string[] parts, string rawLine)
     {
+        if (parts.Length < 3)
+            return new BadMessage(rawLine);
+
         var cells = new List<(long X, long Y)>();
+        var foundCells = false;
 
         for (var i = 1; i + 1 < parts.Length; i += 2)
         {
             if (!parts[i].Equals("cells", StringComparison.OrdinalIgnoreCase))
                 continue;
+
+            foundCells = true;
 
             foreach (var pair in parts[i + 1].Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -38,23 +44,28 @@ public abstract record ServerMessage
             }
         }
 
+        if (!foundCells)
+            return new BadMessage(rawLine);
+
         return new StateMessage(cells);
     }
 
-    private static ResultMessage ParseResult(string[] parts)
+    private static ServerMessage ParseResult(string[] parts, string rawLine)
     {
-        if (parts.Length < 2)
-            return new ResultMessage("");
+        if (parts.Length < 3)
+            return new BadMessage(rawLine);
 
-        var kind = parts[1];
-        var description = parts.Length > 2 ? string.Join('|', parts[2..]) : "";
+        string kind = parts[1];
+        string description = string.Join('|', parts[2..]);
 
-        return string.IsNullOrEmpty(description)
-            ? new ResultMessage($"{kind}:")
-            : new ResultMessage($"{kind}: {description}");
+        return new ResultMessage(kind, description);
     }
 }
 
 public sealed record StateMessage(IReadOnlyList<(long X, long Y)> Cells) : ServerMessage;
 
-public sealed record ResultMessage(string Text) : ServerMessage;
+public sealed record ResultMessage(string Kind, string Description) : ServerMessage;
+
+public sealed record BadMessage(string RawLine) : ServerMessage;
+
+public sealed record UnknownMessage(string RawLine) : ServerMessage;
