@@ -9,7 +9,6 @@ public sealed class TuiApp
     private readonly NetworkStream _stream;
     private readonly StreamReader _reader;
     private readonly TuiModel _model = new();
-    private readonly object _lock = new();
     private volatile bool _running = true;
 
     public TuiApp(NetworkStream stream, StreamReader reader)
@@ -21,7 +20,7 @@ public sealed class TuiApp
     public async Task RunAsync()
     {
         Console.CursorVisible = false;
-        RenderLocked();
+        _model.Render();
 
         _ = Task.Run(ReceiveLoopAsync);
 
@@ -37,29 +36,26 @@ public sealed class TuiApp
             var sendCommand = false;
             string command = "";
 
-            lock (_lock)
+            switch (key.Key)
             {
-                switch (key.Key)
-                {
-                    case ConsoleKey.Enter:
-                        command = _model.InputBuffer.Trim();
-                        _model.InputBuffer = "";
-                        sendCommand = command.Length > 0;
-                        break;
-                    case ConsoleKey.Backspace when _model.InputBuffer.Length > 0:
-                        _model.InputBuffer = _model.InputBuffer[..^1];
-                        break;
-                    case ConsoleKey.Escape:
-                        _model.InputBuffer = "";
-                        break;
-                    default:
-                        if (!char.IsControl(key.KeyChar))
-                            _model.InputBuffer += key.KeyChar;
-                        break;
-                }
+                case ConsoleKey.Enter:
+                    command = _model.InputBuffer.Trim();
+                    _model.InputBuffer = "";
+                    sendCommand = command.Length > 0;
+                    break;
+                case ConsoleKey.Backspace when _model.InputBuffer.Length > 0:
+                    _model.InputBuffer = _model.InputBuffer[..^1];
+                    break;
+                case ConsoleKey.Escape:
+                    _model.InputBuffer = "";
+                    break;
+                default:
+                    if (!char.IsControl(key.KeyChar))
+                        _model.InputBuffer += key.KeyChar;
+                    break;
             }
 
-            RenderLocked();
+            _model.Render();
 
             if (sendCommand)
                 await SendAsync(command);
@@ -75,8 +71,9 @@ public sealed class TuiApp
                 var line = await _reader.ReadLineAsync();
                 if (line is null)
                 {
-                    SetStatus("Disconnected.");
+                    _model.StatusText = "Disconnected.";
                     _running = false;
+                    _model.Render();
                     return;
                 }
 
@@ -84,41 +81,32 @@ public sealed class TuiApp
                 if (message is null)
                     continue;
 
-                lock (_lock)
+                switch (message)
                 {
-                    switch (message)
-                    {
-                        case StateMessage state:
-                            _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
-                            _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
-                            break;
-                        case ResultMessage result:
-                            _model.StatusText = $"{result.Kind}: {result.Description}";
-                            break;
-                        case BadMessage bad:
-                            _model.StatusText = $"bad message: \"{bad.RawLine}\"";
-                            break;
-                        case UnknownMessage unknown:
-                            _model.StatusText = $"unknown message: \"{unknown.RawLine}\"";
-                            break;
-                    }
+                    case StateMessage state:
+                        _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
+                        _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
+                        break;
+                    case ResultMessage result:
+                        _model.StatusText = $"{result.Kind}: {result.Description}";
+                        break;
+                    case BadMessage bad:
+                        _model.StatusText = $"bad message: \"{bad.RawLine}\"";
+                        break;
+                    case UnknownMessage unknown:
+                        _model.StatusText = $"unknown message: \"{unknown.RawLine}\"";
+                        break;
                 }
 
-                RenderLocked();
+                _model.Render();
             }
         }
         catch (Exception ex)
         {
-            SetStatus($"Receive error: {ex.Message}");
+            _model.StatusText = $"Receive error: {ex.Message}";
             _running = false;
+            _model.Render();
         }
-    }
-
-    private void SetStatus(string text)
-    {
-        lock (_lock)
-            _model.StatusText = text;
-        RenderLocked();
     }
 
     private async Task SendAsync(string command)
@@ -129,13 +117,8 @@ public sealed class TuiApp
         }
         catch (Exception ex)
         {
-            SetStatus($"Send error: {ex.Message}");
+            _model.StatusText = $"Send error: {ex.Message}";
+            _model.Render();
         }
-    }
-
-    private void RenderLocked()
-    {
-        lock (_lock)
-            TuiScreen.Render(_model);
     }
 }

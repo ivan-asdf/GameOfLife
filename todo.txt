@@ -31,5 +31,4 @@ save/load
 
 
 Refactor TUI:
-    move lock inside model
     see if we really need TuiScreen?!?
