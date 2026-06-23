@@ -7,26 +7,26 @@ public abstract record ServerMessage
         if (string.IsNullOrWhiteSpace(line))
             return null;
 
-        var parts = line.Split(' ', 2, StringSplitOptions.TrimEntries);
+        var parts = line.Split('|');
 
-        return parts[0] switch
+        return parts[0].ToUpperInvariant() switch
         {
-            "state" => ParseState(parts.Length > 1 ? parts[1] : ""),
-            "result" => new ResultMessage(parts.Length > 1 ? parts[1] : ""),
-            _ => new ResultMessage(line)
+            "STATE" => ParseState(parts),
+            "RESULT" => ParseResult(parts),
+            _ => null
         };
     }
 
-    private static StateMessage ParseState(string payload)
+    private static StateMessage ParseState(string[] parts)
     {
         var cells = new List<(long X, long Y)>();
 
-        foreach (var token in payload.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        for (var i = 1; i + 1 < parts.Length; i += 2)
         {
-            if (!token.StartsWith("cells=", StringComparison.Ordinal))
+            if (!parts[i].Equals("cells", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            foreach (var pair in token["cells=".Length..].Split(';', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var pair in parts[i + 1].Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
                 var xy = pair.Split(',', 2);
                 if (xy.Length == 2
@@ -39,6 +39,19 @@ public abstract record ServerMessage
         }
 
         return new StateMessage(cells);
+    }
+
+    private static ResultMessage ParseResult(string[] parts)
+    {
+        if (parts.Length < 2)
+            return new ResultMessage("");
+
+        var kind = parts[1];
+        var description = parts.Length > 2 ? string.Join('|', parts[2..]) : "";
+
+        return string.IsNullOrEmpty(description)
+            ? new ResultMessage($"{kind}:")
+            : new ResultMessage($"{kind}: {description}");
     }
 }
 

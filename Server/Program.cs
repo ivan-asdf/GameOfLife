@@ -39,7 +39,7 @@ _ = Task.Run(async () =>
             // Dummy moving pattern — later this becomes real Game of Life cells.
             var x = gen % 20;
             var cells = $"{x},0;{x + 1},0;{x + 2},1";
-            await BroadcastAsync($"state gen={gen} cells={cells}");
+            await BroadcastAsync($"STATE|gen|{gen}|cells|{cells}");
             await Task.Delay(1000);
         }
         else
@@ -83,17 +83,17 @@ async Task HandleClientAsync(NetworkStream stream)
                 case "start":
                     lock (runningLock)
                         running = true;
-                    await SendAsync(stream, "result ok started");
+                    await SendAsync(stream, "RESULT|ok|started");
                     break;
 
                 case "stop":
                     lock (runningLock)
                         running = false;
-                    await SendAsync(stream, "result ok stopped");
+                    await SendAsync(stream, "RESULT|ok|stopped");
                     break;
 
                 default:
-                    await SendAsync(stream, "result error unknown command");
+                    await SendAsync(stream, $"RESULT|error|unknown command \"{line.Trim()}\"");
                     break;
             }
         }
