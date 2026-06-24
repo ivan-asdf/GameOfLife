@@ -48,21 +48,21 @@ public abstract record ServerMessage
             return new BadMessage(rawLine);
 
         var cells = new List<(long X, long Y)>();
-        var foundCells = false;
+        bool foundCells = false;
 
-        for (var i = 1; i + 1 < parts.Length; i += 2)
+        for (int i = 1; i + 1 < parts.Length; i += 2)
         {
             if (!parts[i].Equals("cells", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             foundCells = true;
 
-            foreach (var pair in parts[i + 1].Split(';', StringSplitOptions.RemoveEmptyEntries))
+            foreach (string pair in parts[i + 1].Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
-                var xy = pair.Split(',', 2);
+                string[] xy = pair.Split(',', 2);
                 if (xy.Length == 2
-                    && long.TryParse(xy[0], out var x)
-                    && long.TryParse(xy[1], out var y))
+                    && long.TryParse(xy[0], out long x)
+                    && long.TryParse(xy[1], out long y))
                 {
                     cells.Add((x, y));
                 }

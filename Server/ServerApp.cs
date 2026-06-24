@@ -18,13 +18,13 @@ public sealed class ServerApp
 
     public async Task ListenAsync(int port)
     {
-        var listener = new TcpListener(IPAddress.Any, port);
+        TcpListener listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
 
         while (true)
         {
-            var tcpClient = await listener.AcceptTcpClientAsync();
-            var stream = tcpClient.GetStream();
+            TcpClient tcpClient = await listener.AcceptTcpClientAsync();
+            NetworkStream stream = tcpClient.GetStream();
 
             AddClient(stream);
             Console.WriteLine("Client connected.");
@@ -34,7 +34,7 @@ public sealed class ServerApp
 
     private async Task ReceiveLoopAsync(NetworkStream stream)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+        using StreamReader reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
         try
         {
@@ -42,13 +42,13 @@ public sealed class ServerApp
 
             while (true)
             {
-                var line = await reader.ReadLineAsync();
+                string? line = await reader.ReadLineAsync();
                 if (line is null)
                     break;
 
                 Console.WriteLine($"Received command: {line}");
 
-                var command = ClientCommand.Parse(line);
+                ClientCommand? command = ClientCommand.Parse(line);
                 if (command is null)
                     continue;
 
@@ -89,11 +89,11 @@ public sealed class ServerApp
                 await SendAsync(stream, ServerMessage.FormatResultOk("stopped"));
                 break;
 
-            case BadCommand(var errorMessage):
+            case BadCommand(string errorMessage):
                 await SendAsync(stream, errorMessage);
                 break;
 
-            case UnknownCommand(var rawLine):
+            case UnknownCommand(string rawLine):
                 await SendAsync(stream, ServerMessage.FormatUnknownCommand(rawLine));
                 break;
         }
@@ -101,17 +101,17 @@ public sealed class ServerApp
 
     private async Task HandleCellCommandAsync(NetworkStream stream, CellCommand command)
     {
-        Func<int, int, bool> action = command switch
+        var action = (Func<int, int, bool>)(command switch
         {
             ToggleCommand => _universe.Toggle,
             SetCommand => (x, y) => _universe.Set(x, y, alive: true),
             UnsetCommand => (x, y) => _universe.Set(x, y, alive: false),
             _ => throw new InvalidOperationException($"Unexpected cell command: {command}")
-        };
+        });
 
         try
         {
-            var alive = action(command.X, command.Y);
+            bool alive = action(command.X, command.Y);
             await BroadcastStateAsync();
             await SendAsync(stream, ServerMessage.FormatCellState(command.X, command.Y, alive));
         }
@@ -144,7 +144,7 @@ public sealed class ServerApp
         lock (_clientsLock)
             snapshot = _clients.ToList();
 
-        foreach (var clientStream in snapshot)
+        foreach (NetworkStream clientStream in snapshot)
         {
             try
             {
@@ -159,7 +159,7 @@ public sealed class ServerApp
 
     private static async Task SendAsync(NetworkStream stream, string message)
     {
-        var bytes = Encoding.UTF8.GetBytes(message + "\n");
+        byte[] bytes = Encoding.UTF8.GetBytes(message + "\n");
         await stream.WriteAsync(bytes);
     }
 }

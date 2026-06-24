@@ -7,7 +7,7 @@ public abstract record ClientCommand
         if (string.IsNullOrWhiteSpace(line))
             return null;
 
-        var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string[] parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
             return null;
 
@@ -28,8 +28,8 @@ public abstract record ClientCommand
         Func<int, int, CellCommand> create)
     {
         if (parts.Length != 3
-            || !int.TryParse(parts[1], out var x)
-            || !int.TryParse(parts[2], out var y))
+            || !int.TryParse(parts[1], out int x)
+            || !int.TryParse(parts[2], out int y))
         {
             return new BadCommand(ServerMessage.FormatCellUsageError(parts[0]));
         }

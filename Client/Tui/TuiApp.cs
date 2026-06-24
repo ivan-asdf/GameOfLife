@@ -27,7 +27,7 @@ public sealed class TuiApp
         {
             _model.Render();
 
-            var ct = _cts.Token;
+            CancellationToken ct = _cts.Token;
             await Task.WhenAll(InputLoopAsync(ct), ReceiveLoopAsync(ct));
         }
         catch (OperationCanceledException) when (_cts.Token.IsCancellationRequested)
@@ -55,8 +55,8 @@ public sealed class TuiApp
                     continue;
                 }
 
-                var key = Console.ReadKey(intercept: true);
-                var sendCommand = false;
+                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+                bool sendCommand = false;
                 string command = "";
 
                 switch (key.Key)
@@ -101,7 +101,7 @@ public sealed class TuiApp
         {
             while (!ct.IsCancellationRequested)
             {
-                var line = await _reader.ReadLineAsync(ct);
+                string? line = await _reader.ReadLineAsync(ct);
                 if (line is null)
                 {
                     _model.StatusText = "Disconnected.";
@@ -110,7 +110,7 @@ public sealed class TuiApp
                     return;
                 }
 
-                var message = ServerMessage.Parse(line);
+                ServerMessage? message = ServerMessage.Parse(line);
                 if (message is null)
                     continue;
 

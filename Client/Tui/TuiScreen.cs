@@ -8,12 +8,12 @@ public static class TuiScreen
     {
         Console.Clear();
         Console.WriteLine("=== Draw ===");
-        foreach (var line in model.DrawLines)
+        foreach (string line in model.DrawLines)
             Console.WriteLine(line);
 
         Console.WriteLine();
         Console.WriteLine("=== Coords ===");
-        foreach (var line in model.CoordLines)
+        foreach (string line in model.CoordLines)
             Console.WriteLine(line);
 
         Console.WriteLine();
@@ -36,15 +36,15 @@ public static class TuiScreen
         long originY = 0)
     {
         var alive = cells.ToHashSet();
-        var lines = new string[height];
+        string[] lines = new string[height];
 
-        for (var row = 0; row < height; row++)
+        for (int row = 0; row < height; row++)
         {
-            var chars = new char[width];
-            for (var col = 0; col < width; col++)
+            char[] chars = new char[width];
+            for (int col = 0; col < width; col++)
             {
-                var x = originX + col;
-                var y = originY + row;
+                long x = originX + col;
+                long y = originY + row;
                 chars[col] = alive.Contains((x, y)) ? '#' : '.';
             }
 

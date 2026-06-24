@@ -15,7 +15,7 @@ public sealed class Universe
         Validate(x, y);
         lock (_lock)
         {
-            var coord = (x, y);
+            (int X, int Y) coord = (x, y);
             if (!_alive.Add(coord))
                 _alive.Remove(coord);
             return _alive.Contains(coord);
