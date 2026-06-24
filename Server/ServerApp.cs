@@ -16,23 +16,33 @@ public sealed class ServerApp
         _universe = universe;
     }
 
-    public async Task ListenAsync(int port)
+    public async Task ListenAsync(int port, CancellationToken cancellationToken = default)
     {
         TcpListener listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
 
-        while (true)
+        try
         {
-            TcpClient tcpClient = await listener.AcceptTcpClientAsync();
-            NetworkStream stream = tcpClient.GetStream();
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                TcpClient tcpClient = await listener.AcceptTcpClientAsync(cancellationToken);
+                NetworkStream stream = tcpClient.GetStream();
 
-            AddClient(stream);
-            Console.WriteLine("Client connected.");
-            _ = Task.Run(() => ReceiveLoopAsync(stream));
+                AddClient(stream);
+                Console.WriteLine("Client connected.");
+                _ = ReceiveLoopAsync(stream, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            listener.Stop();
         }
     }
 
-    private async Task ReceiveLoopAsync(NetworkStream stream)
+    private async Task ReceiveLoopAsync(NetworkStream stream, CancellationToken ct)
     {
         using StreamReader reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -40,9 +50,9 @@ public sealed class ServerApp
         {
             await SendAsync(stream, ServerMessage.FormatState(0, _universe.FormatCells()));
 
-            while (true)
+            while (!ct.IsCancellationRequested)
             {
-                string? line = await reader.ReadLineAsync();
+                string? line = await reader.ReadLineAsync(ct);
                 if (line is null)
                     break;
 
@@ -54,6 +64,9 @@ public sealed class ServerApp
 
                 await HandleCommandAsync(stream, command);
             }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
