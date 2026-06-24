@@ -2,10 +2,11 @@
 using System.Net.Sockets;
 using System.Text;
 using Server;
+using Server.Protocol;
 
 const int Port = 7777;
 
-var grid = new Universe();
+var universe = new Universe();
 
 var clients = new List<NetworkStream>();
 var clientsLock = new object();
@@ -43,7 +44,12 @@ async Task ClientLoopAsync(NetworkStream stream)
                 break;
 
             Console.WriteLine($"Received command: {line}");
-            await HandleCommandAsync(stream, line);
+
+            var command = ClientCommand.Parse(line);
+            if (command is null)
+                continue;
+
+            await HandleCommandAsync(stream, command);
         }
     }
     catch (Exception ex)
@@ -60,54 +66,48 @@ async Task ClientLoopAsync(NetworkStream stream)
     }
 }
 
-async Task HandleCommandAsync(NetworkStream stream, string line)
+async Task HandleCommandAsync(NetworkStream stream, ClientCommand command)
 {
-    var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-    if (parts.Length == 0)
-        return;
-
-    switch (parts[0].ToLowerInvariant())
+    switch (command)
     {
-        case "toggle":
-            await HandleCellCommandAsync(stream, parts, grid.Toggle);
+        case ToggleCommand(var x, var y):
+            await HandleCellCommandAsync(stream, x, y, universe.Toggle);
             break;
 
-        case "set":
-            await HandleCellCommandAsync(stream, parts, (x, y) => grid.Set(x, y, alive: true));
+        case SetCommand(var x, var y):
+            await HandleCellCommandAsync(stream, x, y, (cx, cy) => universe.Set(cx, cy, alive: true));
             break;
 
-        case "unset":
-            await HandleCellCommandAsync(stream, parts, (x, y) => grid.Set(x, y, alive: false));
+        case UnsetCommand(var x, var y):
+            await HandleCellCommandAsync(stream, x, y, (cx, cy) => universe.Set(cx, cy, alive: false));
             break;
 
-        case "clear":
-            grid.Clear();
+        case ClearCommand:
+            universe.Clear();
             await BroadcastStateAsync();
             await SendAsync(stream, "RESULT|ok|cleared grid");
             break;
 
-        case "start":
+        case StartCommand:
             await SendAsync(stream, "RESULT|ok|started");
             break;
 
-        case "stop":
+        case StopCommand:
             await SendAsync(stream, "RESULT|ok|stopped");
             break;
 
-        default:
-            await SendAsync(stream, $"RESULT|error|unknown command \"{line.Trim()}\"");
+        case BadCommand(var errorMessage):
+            await SendAsync(stream, errorMessage);
+            break;
+
+        case UnknownCommand(var rawLine):
+            await SendAsync(stream, $"RESULT|error|unknown command \"{rawLine.Trim()}\"");
             break;
     }
 }
 
-async Task HandleCellCommandAsync(NetworkStream stream, string[] parts, Func<int, int, bool> action)
+async Task HandleCellCommandAsync(NetworkStream stream, int x, int y, Func<int, int, bool> action)
 {
-    if (!TryParseCoords(parts, out var x, out var y, out var usageError))
-    {
-        await SendAsync(stream, usageError);
-        return;
-    }
-
     try
     {
         var alive = action(x, y);
@@ -120,30 +120,15 @@ async Task HandleCellCommandAsync(NetworkStream stream, string[] parts, Func<int
     }
 }
 
-static bool TryParseCoords(string[] parts, out int x, out int y, out string errorMessage)
-{
-    x = 0;
-    y = 0;
-    errorMessage = "";
-
-    if (parts.Length != 3 || !int.TryParse(parts[1], out x) || !int.TryParse(parts[2], out y))
-    {
-        errorMessage = $"RESULT|error|usage \"{parts[0]} x y\" (x and y: 0..{Universe.InitialStateWidth - 1})";
-        return false;
-    }
-
-    return true;
-}
-
 async Task SendStateAsync(NetworkStream stream)
 {
-    var cells = grid.FormatCells();
+    var cells = universe.FormatCells();
     await SendAsync(stream, $"STATE|gen|0|cells|{cells}");
 }
 
 async Task BroadcastStateAsync()
 {
-    var cells = grid.FormatCells();
+    var cells = universe.FormatCells();
     await BroadcastAsync($"STATE|gen|0|cells|{cells}");
 }
 
