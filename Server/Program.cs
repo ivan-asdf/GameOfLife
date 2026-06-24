@@ -1,55 +1,21 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Server;
 
 const int Port = 7777;
 
-// All connected clients receive broadcasts on these streams.
+var grid = new Universe();
+
 var clients = new List<NetworkStream>();
 var clientsLock = new object();
 
-var generation = 0L;
-var running = false;
-var runningLock = new object();
-
 Console.WriteLine($"Server listening on port {Port}");
-Console.WriteLine("Waiting for clients. Any client can send: start / stop");
+Console.WriteLine("Clients can edit the 100x100 grid: toggle/set/unset x y, clear, start, stop");
 
 var listener = new TcpListener(IPAddress.Any, Port);
 listener.Start();
 
-// Background loop: when running, bump generation and broadcast to everyone.
-_ = Task.Run(async () =>
-{
-    while (true)
-    {
-        bool isRunning;
-        lock (runningLock)
-            isRunning = running;
-
-        if (isRunning)
-        {
-            long gen;
-            lock (runningLock)
-                generation++;
-
-            lock (runningLock)
-                gen = generation;
-
-            // Dummy moving pattern — later this becomes real Game of Life cells.
-            var x = gen % 20;
-            var cells = $"{x},0;{x + 1},0;{x + 2},1";
-            await BroadcastAsync($"STATE|gen|{gen}|cells|{cells}");
-            await Task.Delay(1000);
-        }
-        else
-        {
-            await Task.Delay(100);
-        }
-    }
-});
-
-// Accept clients forever.
 while (true)
 {
     var tcpClient = await listener.AcceptTcpClientAsync();
@@ -59,17 +25,17 @@ while (true)
         clients.Add(stream);
 
     Console.WriteLine("Client connected.");
-
-    // Handle one client in the background (read its commands).
-    _ = Task.Run(() => HandleClientAsync(stream));
+    _ = Task.Run(() => ClientLoopAsync(stream));
 }
 
-async Task HandleClientAsync(NetworkStream stream)
+async Task ClientLoopAsync(NetworkStream stream)
 {
     using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
     try
     {
+        await SendStateAsync(stream);
+
         while (true)
         {
             var line = await reader.ReadLineAsync();
@@ -77,25 +43,7 @@ async Task HandleClientAsync(NetworkStream stream)
                 break;
 
             Console.WriteLine($"Received command: {line}");
-
-            switch (line.Trim().ToLowerInvariant())
-            {
-                case "start":
-                    lock (runningLock)
-                        running = true;
-                    await SendAsync(stream, "RESULT|ok|started");
-                    break;
-
-                case "stop":
-                    lock (runningLock)
-                        running = false;
-                    await SendAsync(stream, "RESULT|ok|stopped");
-                    break;
-
-                default:
-                    await SendAsync(stream, $"RESULT|error|unknown command \"{line.Trim()}\"");
-                    break;
-            }
+            await HandleCommandAsync(stream, line);
         }
     }
     catch (Exception ex)
@@ -112,17 +60,104 @@ async Task HandleClientAsync(NetworkStream stream)
     }
 }
 
+async Task HandleCommandAsync(NetworkStream stream, string line)
+{
+    var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length == 0)
+        return;
+
+    switch (parts[0].ToLowerInvariant())
+    {
+        case "toggle":
+            await HandleCellCommandAsync(stream, parts, grid.Toggle);
+            break;
+
+        case "set":
+            await HandleCellCommandAsync(stream, parts, (x, y) => grid.Set(x, y, alive: true));
+            break;
+
+        case "unset":
+            await HandleCellCommandAsync(stream, parts, (x, y) => grid.Set(x, y, alive: false));
+            break;
+
+        case "clear":
+            grid.Clear();
+            await BroadcastStateAsync();
+            await SendAsync(stream, "RESULT|ok|cleared grid");
+            break;
+
+        case "start":
+            await SendAsync(stream, "RESULT|ok|started");
+            break;
+
+        case "stop":
+            await SendAsync(stream, "RESULT|ok|stopped");
+            break;
+
+        default:
+            await SendAsync(stream, $"RESULT|error|unknown command \"{line.Trim()}\"");
+            break;
+    }
+}
+
+async Task HandleCellCommandAsync(NetworkStream stream, string[] parts, Func<int, int, bool> action)
+{
+    if (!TryParseCoords(parts, out var x, out var y, out var usageError))
+    {
+        await SendAsync(stream, usageError);
+        return;
+    }
+
+    try
+    {
+        var alive = action(x, y);
+        await BroadcastStateAsync();
+        await SendAsync(stream, $"RESULT|ok|cell ({x},{y}) is now {(alive ? "alive" : "dead")}");
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        await SendAsync(stream, $"RESULT|error|invalid coordinates \"{x},{y}\" ({ex.Message})");
+    }
+}
+
+static bool TryParseCoords(string[] parts, out int x, out int y, out string errorMessage)
+{
+    x = 0;
+    y = 0;
+    errorMessage = "";
+
+    if (parts.Length != 3 || !int.TryParse(parts[1], out x) || !int.TryParse(parts[2], out y))
+    {
+        errorMessage = $"RESULT|error|usage \"{parts[0]} x y\" (x and y: 0..{Universe.InitialStateWidth - 1})";
+        return false;
+    }
+
+    return true;
+}
+
+async Task SendStateAsync(NetworkStream stream)
+{
+    var cells = grid.FormatCells();
+    await SendAsync(stream, $"STATE|gen|0|cells|{cells}");
+}
+
+async Task BroadcastStateAsync()
+{
+    var cells = grid.FormatCells();
+    await BroadcastAsync($"STATE|gen|0|cells|{cells}");
+}
+
 async Task BroadcastAsync(string message)
 {
     List<NetworkStream> snapshot;
     lock (clientsLock)
         snapshot = clients.ToList();
 
-    foreach (var stream in snapshot)
+    foreach (var clientStream in snapshot)
     {
         try
         {
-            await SendAsync(stream, message);
+            await SendAsync(clientStream, message);
         }
         catch
         {

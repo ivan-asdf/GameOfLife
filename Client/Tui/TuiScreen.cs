@@ -23,27 +23,36 @@ public static class TuiScreen
         Console.Write($"> {model.InputBuffer}_");
     }
 
-    public static string[] BuildDrawLines(IReadOnlyList<(long X, long Y)> cells)
+    public const int GridWidth = 100;
+    public const int GridHeight = 100;
+
+    public static string[] BuildDrawLines(IReadOnlyList<(long X, long Y)> cells) =>
+        BuildGridLines(cells, GridWidth, GridHeight);
+
+    public static string[] BuildGridLines(
+        IReadOnlyList<(long X, long Y)> cells,
+        int width,
+        int height,
+        long originX = 0,
+        long originY = 0)
     {
-        if (cells.Count == 0)
-            return ["(no cells)"];
-
-        var minX = cells.Min(c => c.X);
-        var minY = cells.Min(c => c.Y);
-        var maxX = cells.Max(c => c.X);
-        var maxY = cells.Max(c => c.Y);
         var alive = cells.ToHashSet();
+        var lines = new string[height];
 
-        var lines = new List<string>();
-        for (var y = minY; y <= maxY; y++)
+        for (var row = 0; row < height; row++)
         {
-            var row = new char[maxX - minX + 1];
-            for (var i = 0; i < row.Length; i++)
-                row[i] = alive.Contains((minX + i, y)) ? '#' : '.';
-            lines.Add(new string(row));
+            var chars = new char[width];
+            for (var col = 0; col < width; col++)
+            {
+                var x = originX + col;
+                var y = originY + row;
+                chars[col] = alive.Contains((x, y)) ? '#' : '.';
+            }
+
+            lines[row] = new string(chars);
         }
 
-        return lines.ToArray();
+        return lines;
     }
 
     public static string[] BuildCoordLines(IReadOnlyList<(long X, long Y)> cells)

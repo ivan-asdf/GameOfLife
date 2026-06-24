@@ -1,4 +1,4 @@
-mplement a multiplayer version of Conway's Game of Life: https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life
+Implement a multiplayer version of Conway's Game of Life: https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life
 
  
 
@@ -28,7 +28,3 @@ wrapvane kato stigne 2^64 nqkoq kletka
 save/load
     dali samo purvonachalen state ili moje da save i running?
         shte probvam da implementiram running ne zvuchi po trudno, ako se okaje fallback samo purvonachalno
-
-
-Refactor TUI:
-    see if we really need TuiScreen?!?
