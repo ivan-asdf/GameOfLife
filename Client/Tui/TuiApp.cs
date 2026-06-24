@@ -1,6 +1,6 @@
 using System.Net.Sockets;
 using System.Text;
-using Client.Protocol;
+using Protocol;
 
 namespace Client.Tui;
 

@@ -1,4 +1,4 @@
-namespace Server.Protocol;
+namespace Protocol;
 
 public abstract record ClientCommand
 {
@@ -25,25 +25,26 @@ public abstract record ClientCommand
 
     private static ClientCommand ParseCellCommand(
         string[] parts,
-        Func<int, int, ClientCommand> create)
+        Func<int, int, CellCommand> create)
     {
         if (parts.Length != 3
             || !int.TryParse(parts[1], out var x)
             || !int.TryParse(parts[2], out var y))
         {
-            return new BadCommand(
-                $"RESULT|error|usage \"{parts[0]} x y\" (x and y: 0..{Universe.InitialStateWidth - 1})");
+            return new BadCommand(ServerMessage.FormatCellUsageError(parts[0]));
         }
 
         return create(x, y);
     }
 }
 
-public sealed record ToggleCommand(int X, int Y) : ClientCommand;
+public abstract record CellCommand(int X, int Y) : ClientCommand;
 
-public sealed record SetCommand(int X, int Y) : ClientCommand;
+public sealed record ToggleCommand(int X, int Y) : CellCommand(X, Y);
 
-public sealed record UnsetCommand(int X, int Y) : ClientCommand;
+public sealed record SetCommand(int X, int Y) : CellCommand(X, Y);
+
+public sealed record UnsetCommand(int X, int Y) : CellCommand(X, Y);
 
 public sealed record ClearCommand() : ClientCommand;
 

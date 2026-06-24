@@ -1,3 +1,5 @@
+using Protocol;
+
 namespace Client.Tui;
 
 public static class TuiScreen
@@ -23,11 +25,8 @@ public static class TuiScreen
         Console.Write($"> {model.InputBuffer}_");
     }
 
-    public const int GridWidth = 100;
-    public const int GridHeight = 100;
-
     public static string[] BuildDrawLines(IReadOnlyList<(long X, long Y)> cells) =>
-        BuildGridLines(cells, GridWidth, GridHeight);
+        BuildGridLines(cells, GameConstants.InitialStateWidth, GameConstants.InitialStateHeight);
 
     public static string[] BuildGridLines(
         IReadOnlyList<(long X, long Y)> cells,

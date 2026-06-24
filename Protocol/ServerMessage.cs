@@ -1,4 +1,4 @@
-namespace Client.Protocol;
+namespace Protocol;
 
 public abstract record ServerMessage
 {
@@ -16,6 +16,31 @@ public abstract record ServerMessage
             _ => new UnknownMessage(line)
         };
     }
+
+    public static string FormatState(long generation, string cells) =>
+        $"STATE|gen|{generation}|cells|{cells}";
+
+    public static string FormatResultOk(string description) =>
+        FormatResult("ok", description);
+
+    public static string FormatResultError(string description) =>
+        FormatResult("error", description);
+
+    public static string FormatCellUsageError(string verb) =>
+        FormatResultError(
+            $"usage \"{verb} x y\" (x and y: 0..{GameConstants.InitialStateWidth - 1})");
+
+    public static string FormatUnknownCommand(string rawLine) =>
+        FormatResultError($"unknown command \"{rawLine.Trim()}\"");
+
+    public static string FormatCellState(int x, int y, bool alive) =>
+        FormatResultOk($"cell ({x},{y}) is now {(alive ? "alive" : "dead")}");
+
+    public static string FormatInvalidCoordinates(int x, int y, string reason) =>
+        FormatResultError($"invalid coordinates \"{x},{y}\" ({reason})");
+
+    private static string FormatResult(string kind, string description) =>
+        $"RESULT|{kind}|{description}";
 
     private static ServerMessage ParseState(string[] parts, string rawLine)
     {

@@ -1,3 +1,5 @@
+using Protocol;
+
 namespace Server;
 
 /// <summary>
@@ -5,9 +7,6 @@ namespace Server;
 /// </summary>
 public sealed class Universe
 {
-    public const int InitialStateWidth = 100;
-    public const int InitialStateHeight = 100;
-
     private readonly HashSet<(int X, int Y)> _alive = new();
     private readonly object _lock = new();
 
@@ -56,9 +55,9 @@ public sealed class Universe
 
     private static void Validate(int x, int y)
     {
-        if (x < 0 || x >= InitialStateWidth)
-            throw new ArgumentOutOfRangeException(nameof(x), x, $"X must be 0..{InitialStateWidth - 1}.");
-        if (y < 0 || y >= InitialStateHeight)
-            throw new ArgumentOutOfRangeException(nameof(y), y, $"Y must be 0..{InitialStateHeight - 1}.");
+        if (x < 0 || x >= GameConstants.InitialStateWidth)
+            throw new ArgumentOutOfRangeException(nameof(x), x, $"X must be 0..{GameConstants.InitialStateWidth - 1}.");
+        if (y < 0 || y >= GameConstants.InitialStateHeight)
+            throw new ArgumentOutOfRangeException(nameof(y), y, $"Y must be 0..{GameConstants.InitialStateHeight - 1}.");
     }
 }
