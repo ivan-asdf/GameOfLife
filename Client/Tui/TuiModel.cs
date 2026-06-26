@@ -6,7 +6,6 @@ public sealed class TuiModel
     private string[] _drawLines = ["(waiting for state)"];
     private string[] _coordLines = ["(empty)"];
     private string _statusText = "Connected. Commands: toggle/set/unset x y, clear, start, stop";
-    private string _inputBuffer = "";
     private long _generation;
 
     public long Generation
@@ -31,17 +30,5 @@ public sealed class TuiModel
     {
         get { lock (_lock) return _statusText; }
         set { lock (_lock) _statusText = value; }
-    }
-
-    public string InputBuffer
-    {
-        get { lock (_lock) return _inputBuffer; }
-        set { lock (_lock) _inputBuffer = value; }
-    }
-
-    public void Render()
-    {
-        lock (_lock)
-            TuiScreen.Render(this);
     }
 }

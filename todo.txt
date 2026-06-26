@@ -40,7 +40,7 @@ set 51 50
 
 1.5
 
-vij tova s local vs universe coords dali si struva.
 
 probvai s nekuv TUI library
-shtot s nashata si implementaciya ima problem s scroll i flicker.
+    opravi coords che ne se vijdat + cvetovete
+    isolate all TUI stuff apart from app?

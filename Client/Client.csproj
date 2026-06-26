@@ -11,4 +11,8 @@
     <ProjectReference Include="..\Protocol\Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" Version="2.4.11" />
+  </ItemGroup>
+
 </Project>
