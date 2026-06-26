@@ -18,5 +18,5 @@ await tcpClient.ConnectAsync(Host, Port, quitCts.Token);
 NetworkStream stream = tcpClient.GetStream();
 using StreamReader reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
-TuiApp app = new TuiApp(stream, reader);
-await app.RunAsync(quitCts.Token);
+TuiClient client = new TuiClient(stream, reader);
+await client.RunAsync(quitCts.Token);
