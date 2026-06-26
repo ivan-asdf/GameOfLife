@@ -47,32 +47,43 @@ public abstract record ServerMessage
         if (parts.Length < 3)
             return new BadMessage(rawLine);
 
+        long generation = 0;
+        bool foundGen = false;
+
         var cells = new List<(long X, long Y)>();
         bool foundCells = false;
 
         for (int i = 1; i + 1 < parts.Length; i += 2)
         {
-            if (!parts[i].Equals("cells", StringComparison.OrdinalIgnoreCase))
-                continue;
+            var key = parts[i];
+            var value = parts[i + 1];
 
-            foundCells = true;
-
-            foreach (string pair in parts[i + 1].Split(';', StringSplitOptions.RemoveEmptyEntries))
+            if (key.Equals("gen", StringComparison.OrdinalIgnoreCase))
             {
-                string[] xy = pair.Split(',', 2);
-                if (xy.Length == 2
-                    && long.TryParse(xy[0], out long x)
-                    && long.TryParse(xy[1], out long y))
+                foundGen = long.TryParse(value, out generation);
+            }
+            else if (key.Equals("cells", StringComparison.OrdinalIgnoreCase))
+            {
+                foundCells = true;
+
+                foreach (var pair in value.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    cells.Add((x, y));
+                    var xy = pair.Split(',', 2);
+
+                    if (xy.Length == 2 &&
+                        long.TryParse(xy[0], out long x) &&
+                        long.TryParse(xy[1], out long y))
+                    {
+                        cells.Add((x, y));
+                    }
                 }
             }
         }
 
-        if (!foundCells)
+        if (!foundGen || !foundCells)
             return new BadMessage(rawLine);
 
-        return new StateMessage(cells);
+        return new StateMessage(generation, cells);
     }
 
     private static ServerMessage ParseResult(string[] parts, string rawLine)
@@ -87,7 +98,7 @@ public abstract record ServerMessage
     }
 }
 
-public sealed record StateMessage(IReadOnlyList<(long X, long Y)> Cells) : ServerMessage;
+public sealed record StateMessage(long Generation, IReadOnlyList<(long X, long Y)> Cells) : ServerMessage;
 
 public sealed record ResultMessage(string Kind, string Description) : ServerMessage;
 

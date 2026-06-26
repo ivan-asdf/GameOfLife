@@ -7,6 +7,13 @@ public sealed class TuiModel
     private string[] _coordLines = ["(empty)"];
     private string _statusText = "Connected. Commands: toggle/set/unset x y, clear, start, stop";
     private string _inputBuffer = "";
+    private long _generation;
+
+    public long Generation
+    {
+        get { lock (_lock) return _generation; }
+        set { lock (_lock) _generation = value; }
+    }
 
     public string[] DrawLines
     {

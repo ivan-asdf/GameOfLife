@@ -7,9 +7,14 @@ namespace Server;
 
 public sealed class ServerApp
 {
+    private const int TickDelayMs = 150;
+
     private readonly Universe _universe;
     private readonly List<NetworkStream> _clients = new();
     private readonly object _clientsLock = new();
+    private readonly object _simulationLock = new();
+    private CancellationTokenSource? _simulationCts;
+    private Task? _simulationTask;
 
     public ServerApp(Universe universe)
     {
@@ -38,6 +43,7 @@ public sealed class ServerApp
         }
         finally
         {
+            await StopSimulationAsync();
             listener.Stop();
         }
     }
@@ -48,7 +54,7 @@ public sealed class ServerApp
 
         try
         {
-            await SendAsync(stream, ServerMessage.FormatState(0, _universe.FormatCells()));
+            await SendAsync(stream, _universe.FormatState());
 
             while (!ct.IsCancellationRequested)
             {
@@ -95,10 +101,12 @@ public sealed class ServerApp
                 break;
 
             case StartCommand:
+                StartSimulation();
                 await SendAsync(stream, ServerMessage.FormatResultOk("started"));
                 break;
 
             case StopCommand:
+                await StopSimulationAsync();
                 await SendAsync(stream, ServerMessage.FormatResultOk("stopped"));
                 break;
 
@@ -116,9 +124,9 @@ public sealed class ServerApp
     {
         var action = (Func<int, int, bool>)(command switch
         {
-            ToggleCommand => _universe.Toggle,
-            SetCommand => (x, y) => _universe.Set(x, y, alive: true),
-            UnsetCommand => (x, y) => _universe.Set(x, y, alive: false),
+            ToggleCommand => _universe.ToggleCell,
+            SetCommand => (x, y) => _universe.SetCell(x, y, alive: true),
+            UnsetCommand => (x, y) => _universe.SetCell(x, y, alive: false),
             _ => throw new InvalidOperationException($"Unexpected cell command: {command}")
         });
 
@@ -131,6 +139,58 @@ public sealed class ServerApp
         catch (ArgumentOutOfRangeException ex)
         {
             await SendAsync(stream, ServerMessage.FormatInvalidCoordinates(command.X, command.Y, ex.Message));
+        }
+    }
+
+    private void StartSimulation()
+    {
+        lock (_simulationLock)
+        {
+            if (_simulationCts is not null)
+                return;
+
+            _simulationCts = new CancellationTokenSource();
+            CancellationToken ct = _simulationCts.Token;
+            _simulationTask = SimulationLoopAsync(ct);
+        }
+    }
+
+    private async Task StopSimulationAsync()
+    {
+        Task? task;
+        lock (_simulationLock)
+        {
+            if (_simulationCts is null)
+                return;
+
+            _simulationCts.Cancel();
+            task = _simulationTask;
+            _simulationCts = null;
+            _simulationTask = null;
+        }
+
+        try
+        {
+            await task!;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task SimulationLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                _universe.Step();
+                await BroadcastStateAsync();
+                await Task.Delay(TickDelayMs, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 
@@ -148,7 +208,7 @@ public sealed class ServerApp
 
     private async Task BroadcastStateAsync()
     {
-        await BroadcastAsync(ServerMessage.FormatState(0, _universe.FormatCells()));
+        await BroadcastAsync(_universe.FormatState());
     }
 
     private async Task BroadcastAsync(string message)
@@ -165,7 +225,7 @@ public sealed class ServerApp
             }
             catch
             {
-                // Client will be cleaned up when its read loop fails.
+                // Keep broadcasting to other clients if one stream is dead.
             }
         }
     }

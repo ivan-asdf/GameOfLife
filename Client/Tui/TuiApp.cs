@@ -117,6 +117,7 @@ public sealed class TuiApp
                 switch (message)
                 {
                     case StateMessage state:
+                        _model.Generation = state.Generation;
                         _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
                         _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
                         break;

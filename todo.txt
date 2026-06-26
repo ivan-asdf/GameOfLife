@@ -28,3 +28,19 @@ wrapvane kato stigne 2^64 nqkoq kletka
 save/load
     dali samo purvonachalen state ili moje da save i running?
         shte probvam da implementiram running ne zvuchi po trudno, ako se okaje fallback samo purvonachalno
+
+
+set 49 50
+set 50 50
+set 51 50
+
+
+3
+2
+
+1.5
+
+vij tova s local vs universe coords dali si struva.
+
+probvai s nekuv TUI library
+shtot s nashata si implementaciya ima problem s scroll i flicker.

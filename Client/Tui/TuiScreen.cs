@@ -18,6 +18,7 @@ public static class TuiScreen
 
         Console.WriteLine();
         Console.WriteLine("=== Status ===");
+        Console.WriteLine($"Generation: {model.Generation}");
         Console.WriteLine(model.StatusText);
 
         Console.WriteLine();
@@ -26,7 +27,12 @@ public static class TuiScreen
     }
 
     public static string[] BuildDrawLines(IReadOnlyList<(long X, long Y)> cells) =>
-        BuildGridLines(cells, GameConstants.InitialStateWidth, GameConstants.InitialStateHeight);
+        BuildGridLines(
+            cells,
+            GameConstants.InitialStateWidth,
+            GameConstants.InitialStateHeight,
+            GameConstants.InitialAreaOriginX,
+            GameConstants.InitialAreaOriginY);
 
     public static string[] BuildGridLines(
         IReadOnlyList<(long X, long Y)> cells,
