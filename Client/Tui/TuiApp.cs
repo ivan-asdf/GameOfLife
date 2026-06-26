@@ -2,9 +2,12 @@ using System.Net.Sockets;
 using System.Text;
 using Protocol;
 using Terminal.Gui.App;
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+
+#pragma warning disable CS0618 // TextView: scrollable coords panel
 
 namespace Client.Tui;
 
@@ -129,13 +132,23 @@ public sealed class TuiApp
         {
             ReadOnly = true,
             CanFocus = false,
-            SchemeName = BaseSchemeName,
             ScrollBars = true,
+            SchemeName = BaseSchemeName,
             X = 0,
             Y = Pos.Bottom(coordsLabel),
             Width = Dim.Fill(),
             Height = Dim.Fill(margin: 0, minimumContentDim: CoordsMinHeight, to: statusHeaderLabel)
         };
+        coordsView.GettingAttributeForRole += (_, args) =>
+        {
+            if (args.Role is VisualRole.ReadOnly or VisualRole.Editable or VisualRole.Focus)
+            {
+                args.Result = coordsView.GetAttributeForRole(VisualRole.Normal);
+                args.Handled = true;
+            }
+        };
+        coordsView.DrawReadOnlyColor += (_, _) =>
+            coordsView.SetAttribute(coordsView.GetAttributeForRole(VisualRole.Normal));
 
         Label gridView = new Label
         {
@@ -188,15 +201,12 @@ public sealed class TuiApp
                 if (message is null)
                     continue;
 
-                // bool refreshUi = true;
-
                 switch (message)
                 {
                     case StateMessage state:
                         _model.Generation = state.Generation;
                         _model.DrawLines = TuiScreen.BuildDrawLines(state.Cells);
                         _model.CoordLines = TuiScreen.BuildCoordLines(state.Cells);
-                        // refreshUi = ShouldRefreshStateUi();
                         break;
                     case ResultMessage result:
                         _model.StatusText = $"{result.Kind}: {result.Description}";
@@ -209,8 +219,7 @@ public sealed class TuiApp
                         break;
                 }
 
-                // if (refreshUi)
-                    RefreshUi();
+                RefreshUi();
             }
         }
         catch (OperationCanceledException)
@@ -254,7 +263,12 @@ public sealed class TuiApp
             bool commandHadFocus = _commandField?.HasFocus == true;
 
             _gridView.Text = gridText;
+
+            var scroll = _coordsView.VerticalScrollBar;
+            int oldValue = scroll.Value;
             _coordsView.Text = coordsText;
+            scroll.Value = oldValue;
+
             _generationLabel.Text = $"Generation: {_model.Generation}";
             _statusTextLabel.Text = _model.StatusText;
 

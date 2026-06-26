@@ -74,13 +74,18 @@ public static class TuiScreen
 
     public static string[] BuildCoordLines(IReadOnlyList<(long X, long Y)> cells)
     {
+        string[] lines;
         if (cells.Count == 0)
-            return ["(empty)"];
+            lines = ["(empty)"];
+        else
+        {
+            lines = cells
+                .OrderBy(c => c.Y)
+                .ThenBy(c => c.X)
+                .Select(c => $"({c.X}, {c.Y})")
+                .ToArray();
+        }
 
-        return cells
-            .OrderBy(c => c.Y)
-            .ThenBy(c => c.X)
-            .Select(c => $"({c.X}, {c.Y})")
-            .ToArray();
+        return lines;
     }
 }
