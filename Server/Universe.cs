@@ -48,6 +48,21 @@ public sealed class Universe
         }
     }
 
+    public void LoadSnapshot(long generation, IEnumerable<(long X, long Y)> cells)
+    {
+        lock (_lock)
+        {
+            _alive = cells.ToHashSet();
+            Generation = generation;
+        }
+    }
+
+    public GameSaveData ExportSnapshot()
+    {
+        lock (_lock)
+            return new GameSaveData(Generation, _alive.ToList());
+    }
+
     public void Step()
     {
         lock (_lock)

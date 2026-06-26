@@ -10,15 +10,17 @@ public sealed class ServerApp
     private const int TickDelayMs = 150;
 
     private readonly Universe _universe;
+    private readonly SaveStore _saves;
     private readonly List<NetworkStream> _clients = new();
     private readonly object _clientsLock = new();
     private readonly object _simulationLock = new();
     private CancellationTokenSource? _simulationCts;
     private Task? _simulationTask;
 
-    public ServerApp(Universe universe)
+    public ServerApp(Universe universe, SaveStore? saves = null)
     {
         _universe = universe;
+        _saves = saves ?? new SaveStore();
     }
 
     public async Task ListenAsync(int port, CancellationToken cancellationToken = default)
@@ -95,6 +97,13 @@ public sealed class ServerApp
                 break;
 
             case ClearCommand:
+                if (IsSimulationRunning())
+                {
+                    await SendAsync(stream, ServerMessage.FormatResultError(
+                        "simulation is running; stop first"));
+                    break;
+                }
+
                 _universe.Clear();
                 await BroadcastStateAsync();
                 await SendAsync(stream, ServerMessage.FormatResultOk("cleared grid"));
@@ -110,12 +119,24 @@ public sealed class ServerApp
                 await SendAsync(stream, ServerMessage.FormatResultOk("stopped"));
                 break;
 
-            case BadCommand(string errorMessage):
-                await SendAsync(stream, errorMessage);
+            case SaveCommand save:
+                await HandleSaveAsync(stream, save.Name);
                 break;
 
-            case UnknownCommand(string rawLine):
-                await SendAsync(stream, ServerMessage.FormatUnknownCommand(rawLine));
+            case LoadCommand load:
+                await HandleLoadAsync(stream, load.Name);
+                break;
+
+            case ListCommand:
+                await HandleListAsync(stream);
+                break;
+
+            case BadCommand bad:
+                await SendAsync(stream, bad.ErrorMessage);
+                break;
+
+            case UnknownCommand unknown:
+                await SendAsync(stream, ServerMessage.FormatUnknownCommand(unknown.RawLine));
                 break;
         }
     }
@@ -140,6 +161,62 @@ public sealed class ServerApp
         {
             await SendAsync(stream, ServerMessage.FormatInvalidCoordinates(command.X, command.Y, ex.Message));
         }
+    }
+
+    private async Task HandleSaveAsync(NetworkStream stream, string name)
+    {
+        try
+        {
+            GameSaveData snapshot = _universe.ExportSnapshot();
+            _saves.Save(name, snapshot);
+            await SendAsync(stream, ServerMessage.FormatResultOk(
+                $"saved \"{name}\" ({snapshot.Cells.Count} cells, gen {snapshot.Generation})"));
+        }
+        catch (Exception ex)
+        {
+            await SendAsync(stream, ServerMessage.FormatResultError($"save failed: {ex.Message}"));
+        }
+    }
+
+    private async Task HandleListAsync(NetworkStream stream)
+    {
+        IReadOnlyList<string> names = _saves.List();
+        string description = names.Count == 0
+            ? "no saves"
+            : string.Join(", ", names);
+        await SendAsync(stream, ServerMessage.FormatResultOk(description));
+    }
+
+    private async Task HandleLoadAsync(NetworkStream stream, string name)
+    {
+        try
+        {
+            await StopSimulationAsync();
+
+            GameSaveData snapshot = _saves.Load(name);
+            _universe.LoadSnapshot(snapshot.Generation, snapshot.Cells);
+            await BroadcastStateAsync();
+            await SendAsync(stream, ServerMessage.FormatResultOk(
+                $"loaded \"{name}\" ({snapshot.Cells.Count} cells, gen {snapshot.Generation})"));
+        }
+        catch (FileNotFoundException)
+        {
+            await SendAsync(stream, ServerMessage.FormatResultError($"save file not found: \"{name}\""));
+        }
+        catch (FormatException ex)
+        {
+            await SendAsync(stream, ServerMessage.FormatResultError($"invalid save file: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            await SendAsync(stream, ServerMessage.FormatResultError($"load failed: {ex.Message}"));
+        }
+    }
+
+    private bool IsSimulationRunning()
+    {
+        lock (_simulationLock)
+            return _simulationCts is not null;
     }
 
     private void StartSimulation()

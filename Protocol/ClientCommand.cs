@@ -19,6 +19,9 @@ public abstract record ClientCommand
             "clear" => new ClearCommand(),
             "start" => new StartCommand(),
             "stop" => new StopCommand(),
+            "save" => ParseNameCommand(parts, name => new SaveCommand(name)),
+            "load" => ParseNameCommand(parts, name => new LoadCommand(name)),
+            "list" => new ListCommand(),
             _ => new UnknownCommand(line)
         };
     }
@@ -36,6 +39,18 @@ public abstract record ClientCommand
 
         return create(x, y);
     }
+
+    private static ClientCommand ParseNameCommand(string[] parts, Func<string, NameCommand> create)
+    {
+        if (parts.Length != 2)
+            return new BadCommand(GameSaveFile.FormatUsageError(parts[0]));
+
+        string name = parts[1];
+        if (!GameSaveFile.IsValidName(name))
+            return new BadCommand(GameSaveFile.FormatInvalidNameError(name));
+
+        return create(name);
+    }
 }
 
 public abstract record CellCommand(int X, int Y) : ClientCommand;
@@ -51,6 +66,14 @@ public sealed record ClearCommand() : ClientCommand;
 public sealed record StartCommand() : ClientCommand;
 
 public sealed record StopCommand() : ClientCommand;
+
+public abstract record NameCommand(string Name) : ClientCommand;
+
+public sealed record SaveCommand(string Name) : NameCommand(Name);
+
+public sealed record LoadCommand(string Name) : NameCommand(Name);
+
+public sealed record ListCommand() : ClientCommand;
 
 public sealed record BadCommand(string ErrorMessage) : ClientCommand;
 

@@ -79,11 +79,13 @@ public static class TuiScreen
             lines = ["(empty)"];
         else
         {
-            lines = cells
-                .OrderBy(c => c.Y)
-                .ThenBy(c => c.X)
-                .Select(c => $"({c.X}, {c.Y})")
-                .ToArray();
+            // lines = cells
+            //     .OrderBy(c => c.Y)
+            //     .ThenBy(c => c.X)
+            //     .Select(c => $"({c.X}, {c.Y})")
+            //     .ToArray();
+            lines = cells.Select(c => $"({c.X}, {c.Y})").ToArray();
+                
         }
 
         return lines;
