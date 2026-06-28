@@ -22,8 +22,5 @@ There should also be a function to store/load the state. Please prepare an examp
 You are expected to use AI agents for the task. Be prepared to discuss your approach and work process.
 
 
-save/load:
-    rename GameSaveFile?!?!
-    testvai Gosper's glider gun simulaciyata
-    testvai running save
-    testvai stoped save
+dobavi edin fps ako iskash
+dobavi edno readme ako iskash
