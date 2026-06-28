@@ -72,22 +72,8 @@ public static class TuiScreen
         return lines;
     }
 
-    public static string[] BuildCoordLines(IReadOnlyList<(long X, long Y)> cells)
-    {
-        string[] lines;
-        if (cells.Count == 0)
-            lines = ["(empty)"];
-        else
-        {
-            // lines = cells
-            //     .OrderBy(c => c.Y)
-            //     .ThenBy(c => c.X)
-            //     .Select(c => $"({c.X}, {c.Y})")
-            //     .ToArray();
-            lines = cells.Select(c => $"({c.X}, {c.Y})").ToArray();
-                
-        }
-
-        return lines;
-    }
+    public static string[] BuildCoordLines(IReadOnlyList<(long X, long Y)> cells) =>
+        cells.Count == 0
+            ? ["(empty)"]
+            : cells.Select(c => $"({c.X}, {c.Y})").ToArray();
 }

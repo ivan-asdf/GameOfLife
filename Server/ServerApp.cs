@@ -110,8 +110,10 @@ public sealed class ServerApp
                 break;
 
             case StartCommand:
-                StartSimulation();
-                await SendAsync(stream, ServerMessage.FormatResultOk("started"));
+                if (StartSimulation())
+                    await SendAsync(stream, ServerMessage.FormatResultOk("started"));
+                else
+                    await SendAsync(stream, ServerMessage.FormatResultOk("already running"));
                 break;
 
             case StopCommand:
@@ -147,6 +149,13 @@ public sealed class ServerApp
 
     private async Task HandleCellCommandAsync(NetworkStream stream, CellCommand command)
     {
+        if (IsSimulationRunning())
+        {
+            await SendAsync(stream, ServerMessage.FormatResultError(
+                "simulation is running; stop first"));
+            return;
+        }
+
         var action = (Func<int, int, bool>)(command switch
         {
             ToggleCommand => _universe.ToggleCell,
@@ -237,16 +246,17 @@ public sealed class ServerApp
             return _simulationCts is not null;
     }
 
-    private void StartSimulation()
+    private bool StartSimulation()
     {
         lock (_simulationLock)
         {
             if (_simulationCts is not null)
-                return;
+                return false;
 
             _simulationCts = new CancellationTokenSource();
             CancellationToken ct = _simulationCts.Token;
             _simulationTask = SimulationLoopAsync(ct);
+            return true;
         }
     }
 
