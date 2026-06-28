@@ -7,7 +7,7 @@ namespace Server;
 
 public sealed class ServerApp
 {
-    private const int TickDelayMs = 150;
+    private volatile int _tickDelayMs = GameConstants.DefaultSimulationTickDelayMs;
 
     private readonly Universe _universe;
     private readonly SaveStore _saves;
@@ -131,6 +131,10 @@ public sealed class ServerApp
                 await HandleListAsync(stream);
                 break;
 
+            case FpsCommand fps:
+                await HandleFpsAsync(stream, fps);
+                break;
+
             case BadCommand bad:
                 await SendAsync(stream, bad.ErrorMessage);
                 break;
@@ -186,6 +190,20 @@ public sealed class ServerApp
             : string.Join(", ", names);
         await SendAsync(stream, ServerMessage.FormatResultOk(description));
     }
+
+    private async Task HandleFpsAsync(NetworkStream stream, FpsCommand command)
+    {
+        if (command.Fps is null)
+        {
+            await SendAsync(stream, ServerMessage.FormatResultOk($"fps is {GetSimulationFps()}"));
+            return;
+        }
+
+        _tickDelayMs = 1000 / command.Fps.Value;
+        await SendAsync(stream, ServerMessage.FormatResultOk($"fps set to {command.Fps.Value}"));
+    }
+
+    private int GetSimulationFps() => 1000 / _tickDelayMs;
 
     private async Task HandleLoadAsync(NetworkStream stream, string name)
     {
@@ -263,7 +281,7 @@ public sealed class ServerApp
             {
                 _universe.Step();
                 await BroadcastStateAsync();
-                await Task.Delay(TickDelayMs, ct);
+                await Task.Delay(_tickDelayMs, ct);
             }
         }
         catch (OperationCanceledException)

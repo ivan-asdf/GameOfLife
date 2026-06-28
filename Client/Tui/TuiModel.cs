@@ -5,7 +5,7 @@ public sealed class TuiModel
     private readonly object _lock = new();
     private string[] _drawLines = ["(waiting for state)"];
     private string[] _coordLines = ["(empty)"];
-    private string _statusText = "Connected. Commands: toggle/set/unset x y, clear, start, stop, save/load name, list";
+    private string _statusText = "Connected. Commands: toggle/set/unset x y, clear, start, stop, save/load name, list, fps";
     private long _generation;
 
     public long Generation

@@ -5,6 +5,10 @@ public static class GameConstants
     public const int InitialStateWidth = 100;
     public const int InitialStateHeight = 100;
 
+    public const int MinSimulationFps = 1;
+    public const int MaxSimulationFps = 60;
+    public const int DefaultSimulationTickDelayMs = 150;
+
     /// <summary>
     /// Universe coordinates wrap on a 2^64 torus (unchecked long arithmetic).
     /// The editable 100×100 window is centered on (0, 0).

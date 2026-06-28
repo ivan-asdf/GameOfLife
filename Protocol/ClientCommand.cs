@@ -22,6 +22,7 @@ public abstract record ClientCommand
             "save" => ParseNameCommand(parts, name => new SaveCommand(name)),
             "load" => ParseNameCommand(parts, name => new LoadCommand(name)),
             "list" => new ListCommand(),
+            "fps" => ParseFpsCommand(parts),
             _ => new UnknownCommand(line)
         };
     }
@@ -51,6 +52,22 @@ public abstract record ClientCommand
 
         return create(name);
     }
+
+    private static ClientCommand ParseFpsCommand(string[] parts)
+    {
+        if (parts.Length == 1)
+            return new FpsCommand(null);
+
+        if (parts.Length == 2
+            && int.TryParse(parts[1], out int fps)
+            && fps >= GameConstants.MinSimulationFps
+            && fps <= GameConstants.MaxSimulationFps)
+        {
+            return new FpsCommand(fps);
+        }
+
+        return new BadCommand(ServerMessage.FormatFpsUsageError());
+    }
 }
 
 public abstract record CellCommand(int X, int Y) : ClientCommand;
@@ -74,6 +91,8 @@ public sealed record SaveCommand(string Name) : NameCommand(Name);
 public sealed record LoadCommand(string Name) : NameCommand(Name);
 
 public sealed record ListCommand() : ClientCommand;
+
+public sealed record FpsCommand(int? Fps) : ClientCommand;
 
 public sealed record BadCommand(string ErrorMessage) : ClientCommand;
 

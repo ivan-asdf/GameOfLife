@@ -30,6 +30,10 @@ public abstract record ServerMessage
         FormatResultError(
             $"usage \"{verb} x y\" (x and y: 0..{GameConstants.InitialStateWidth - 1})");
 
+    public static string FormatFpsUsageError() =>
+        FormatResultError(
+            $"usage \"fps [{GameConstants.MinSimulationFps}-{GameConstants.MaxSimulationFps}]\" or \"fps\" to query");
+
     public static string FormatUnknownCommand(string rawLine) =>
         FormatResultError($"unknown command \"{rawLine.Trim()}\"");
 
